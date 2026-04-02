@@ -3,9 +3,10 @@ import { Vector3 } from 'three';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 // How far from the building centre to place the panel anchor, in metres.
+// Apple Park outer ring radius ≈ 231 m — place the anchor just beyond that.
 // The anchor is always 90° to the side of the camera so it never covers the building.
-const ORBIT_RADIUS   = 480;
-const ORBIT_HEIGHT   = 220;   // metres above the building base
+const ORBIT_RADIUS   = 380;
+const ORBIT_HEIGHT   = 55;    // metres above ground (building is ~13 m tall)
 
 // Fraction used for lerp smoothing (0 = no movement, 1 = instant snap)
 const SMOOTHING = 0.08;

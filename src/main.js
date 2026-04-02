@@ -3,58 +3,71 @@ import {
   WebGLRenderer,
   PerspectiveCamera,
   DirectionalLight,
-  AmbientLight,
+  HemisphereLight,
   Color,
   Fog,
+  PCFSoftShadowMap,
 } from 'three';
 
-import { createTiles }       from './tiles.js';
 import { createControls }    from './controls.js';
 import { createBlogOverlay } from './blog-overlay.js';
+import { loadOSMBuildings }  from './osm-buildings.js';
+import { createGround }      from './ground.js';
 
 // ─── Scene ────────────────────────────────────────────────────────────────────
 
 const scene = new Scene();
-scene.background = new Color(0x87ceeb);   // sky blue fallback
-scene.fog = new Fog(0x87ceeb, 6000, 12000);
+scene.background = new Color(0x8ec8f0);         // California sky
+scene.fog = new Fog(0x8ec8f0, 2000, 4500);
 
 // ─── Renderer ─────────────────────────────────────────────────────────────────
 
 const renderer = new WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type    = PCFSoftShadowMap;
 
-const container = document.getElementById('canvas-container');
-container.appendChild(renderer.domElement);
+document.getElementById('canvas-container').appendChild(renderer.domElement);
 
 // ─── Camera ───────────────────────────────────────────────────────────────────
 
 const camera = new PerspectiveCamera(
-  60,
+  55,
   window.innerWidth / window.innerHeight,
-  10,       // near  — tight enough to show buildings close up
-  80000,    // far   — wide enough to show surrounding terrain
+  1,      // near
+  8000,   // far — wide enough to see surrounding neighbourhood
 );
 
-// ─── Lighting (complements tile textures in low-light conditions) ─────────────
+// ─── Lighting ─────────────────────────────────────────────────────────────────
 
-const ambient = new AmbientLight(0xffffff, 0.6);
-scene.add(ambient);
+// Hemisphere light — sky colour from above, warm ground-bounce from below
+const hemi = new HemisphereLight(0xb8d8f8, 0x8aaa70, 0.65);
+scene.add(hemi);
 
-const sun = new DirectionalLight(0xfff5e0, 1.2);
-sun.position.set(500, 1200, 800);
+// Sun — angled from the south-west for a pleasant afternoon look
+const sun = new DirectionalLight(0xfff3d0, 1.6);
+sun.position.set(-400, 700, 300);
+sun.castShadow = true;
+
+// Shadow frustum sized around the Apple Park campus (~500 m radius)
+const sc = sun.shadow.camera;
+sc.near = 1; sc.far = 2000;
+sc.left = -700; sc.right = 700;
+sc.top  =  700; sc.bottom = -700;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.bias = -0.001;
+
 scene.add(sun);
 
-// ─── 3D Tiles ─────────────────────────────────────────────────────────────────
+// ─── Ground ───────────────────────────────────────────────────────────────────
 
-const tiles = createTiles(renderer, camera);
-scene.add(tiles.group);
+scene.add(createGround(5000));
 
-// ─── Controls ─────────────────────────────────────────────────────────────────
+// ─── Controls (set up early so the render loop can start immediately) ─────────
 
 const controls = createControls(camera, renderer.domElement);
 
-// Stop auto-rotate as soon as the user touches the scene
 renderer.domElement.addEventListener('pointerdown', () => {
   controls.autoRotate = false;
 }, { once: true });
@@ -63,65 +76,50 @@ renderer.domElement.addEventListener('pointerdown', () => {
 
 const blogOverlay = createBlogOverlay(camera);
 
-// ─── Loading Screen ───────────────────────────────────────────────────────────
-
-const loadingEl = document.getElementById('loading');
-let tilesLoaded = false;
-
-function hideLoading() {
-  if (tilesLoaded) return;
-  tilesLoaded = true;
-  loadingEl.classList.add('fade-out');
-  setTimeout(() => { loadingEl.style.display = 'none'; }, 700);
-}
-
-// Hide loading once the first batch of tiles arrives (or after a fallback timeout)
-tiles.addEventListener('load-tile-set', hideLoading);
-setTimeout(hideLoading, 8000);   // fallback — show the scene even with no API key
-
 // ─── Controls hint ────────────────────────────────────────────────────────────
 
 const hint = document.createElement('div');
 hint.className = 'controls-hint';
 hint.textContent = 'Drag to orbit · Scroll to zoom';
 document.body.appendChild(hint);
+renderer.domElement.addEventListener('pointerdown', () => hint.classList.add('hidden'), { once: true });
 
-renderer.domElement.addEventListener('pointerdown', () => {
-  hint.classList.add('hidden');
-}, { once: true });
-
-// ─── Attribution div (populated by GoogleCloudAuthPlugin) ─────────────────────
-
-// The plugin appends attribution text/logo to an element with id="attribution"
-// if one exists; our CSS already positions it at the bottom.
-
-// ─── Resize Handler ───────────────────────────────────────────────────────────
+// ─── Resize ───────────────────────────────────────────────────────────────────
 
 window.addEventListener('resize', () => {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
+  const w = window.innerWidth, h = window.innerHeight;
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
-  tiles.setResolutionFromRenderer(camera, renderer);
 });
 
-// ─── Render Loop ──────────────────────────────────────────────────────────────
+// ─── Load OSM buildings ───────────────────────────────────────────────────────
+
+const loadingEl = document.getElementById('loading');
+
+loadOSMBuildings()
+  .then(buildingsGroup => {
+    scene.add(buildingsGroup);
+    loadingEl.classList.add('fade-out');
+    setTimeout(() => { loadingEl.style.display = 'none'; }, 700);
+  })
+  .catch(err => {
+    console.error('OSM buildings load failed:', err);
+    const sub = loadingEl.querySelector('.loading__sub');
+    if (sub) sub.textContent = 'Could not reach Overpass API — check your connection.';
+    // Show the empty scene anyway after a short delay
+    setTimeout(() => {
+      loadingEl.classList.add('fade-out');
+      setTimeout(() => { loadingEl.style.display = 'none'; }, 700);
+    }, 2000);
+  });
+
+// ─── Render loop ──────────────────────────────────────────────────────────────
 
 function animate() {
   requestAnimationFrame(animate);
-
   controls.update();
-
-  // Update tiles each frame (handles LOD, streaming, etc.)
-  tiles.setCamera(camera);
-  tiles.setResolutionFromRenderer(camera, renderer);
-  camera.updateMatrixWorld();
-  tiles.update();
-
-  // Reposition the blog panel to orbit beside the building
   blogOverlay.update();
-
   renderer.render(scene, camera);
 }
 
