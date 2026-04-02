@@ -14,9 +14,10 @@ const CENTER_LAT = 37.3349;
 const CENTER_LON = -122.0090;
 
 // ─── Overpass API query ───────────────────────────────────────────────────────
-// Bounding box covers the full Apple Park campus plus immediate surroundings.
+// Tight bbox: just large enough to cover the Apple Park ring + Visitor Centre
+// + Steve Jobs Theater.  Neighbouring properties sit outside this box.
 
-const BBOX = '37.3265,-122.0165,37.3435,-122.0010';
+const BBOX = '37.3295,-122.0145,37.3405,-122.0038';
 
 const OVERPASS_QUERY = `[out:json][timeout:30];
 (
@@ -24,6 +25,12 @@ const OVERPASS_QUERY = `[out:json][timeout:30];
   relation["building"]["type"="multipolygon"](${BBOX});
 );
 out geom;`;
+
+// Only render buildings whose polygon centroid lies within this radius of the
+// Apple Park centre (metres).  The furthest Apple building (Visitor Centre) is
+// ~340 m away; 450 m gives comfortable headroom while still excluding the
+// nearest non-Apple neighbours.
+const CAMPUS_RADIUS_SQ = 450 * 450;
 
 // ─── Coordinate helpers ───────────────────────────────────────────────────────
 
@@ -44,6 +51,18 @@ function geoToXY(lat, lon) {
     (lon - CENTER_LON) * METERS_PER_LON,
     (lat - CENTER_LAT) * METERS_PER_LAT,
   );
+}
+
+/**
+ * Return true if the centroid of pts (Vector2 array) is within CAMPUS_RADIUS
+ * of the Apple Park origin.  Used to strip non-Apple buildings.
+ */
+function isOnCampus(pts) {
+  if (pts.length === 0) return false;
+  let x = 0, y = 0;
+  for (const p of pts) { x += p.x; y += p.y; }
+  x /= pts.length; y /= pts.length;
+  return (x * x + y * y) <= CAMPUS_RADIUS_SQ;
 }
 
 /**
@@ -163,6 +182,8 @@ export async function loadOSMBuildings() {
     if (el.type === 'way' && el.geometry) {
       // ── Simple building polygon ──────────────────────────────────────────
       const pts = nodesToXY(el.geometry);
+      // Skip anything whose centroid isn't on the Apple Park campus
+      if (!isOnCampus(pts)) continue;
       const geo = buildExtruded(pts, [], h);
       if (geo) {
         const mesh = new Mesh(geo, mat);
@@ -187,6 +208,8 @@ export async function loadOSMBuildings() {
       }
 
       if (outers.length === 0) continue;
+      // Skip relations whose outer ring centroid isn't on campus
+      if (!isOnCampus(outers[0])) continue;
 
       // First outer ring carries all inner holes
       const geo = buildExtruded(outers[0], inners, h);
