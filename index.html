@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Apple Park · 3D Viewer</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="canvas-container"></div>
+
+    <div id="blog-panel" class="blog-panel" aria-label="Apple Newsroom">
+      <div class="blog-panel__header">
+        <span class="blog-panel__tag">Apple Newsroom</span>
+        <span class="blog-panel__date">March 28, 2026</span>
+      </div>
+      <h2 class="blog-panel__title">
+        Apple Intelligence arrives on iPhone 16e, bringing powerful AI features to more users
+      </h2>
+      <p class="blog-panel__excerpt">
+        Apple today announced that Apple Intelligence — the personal intelligence
+        system that combines the power of generative models with personal context —
+        is now available on iPhone 16e. Users can access Writing Tools, Image
+        Playground, Priority Notifications, and a smarter Siri that understands
+        natural language across apps.
+      </p>
+      <div class="blog-panel__meta">
+        <span class="blog-panel__location">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+            <path d="M6 0a4 4 0 0 0-4 4c0 3 4 8 4 8s4-5 4-8a4 4 0 0 0-4-4zm0 5.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/>
+          </svg>
+          Apple Park, Cupertino
+        </span>
+        <a
+          class="blog-panel__link"
+          href="https://www.apple.com/newsroom/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Read More →
+        </a>
+      </div>
+    </div>
+
+    <div id="attribution" class="attribution"></div>
+
+    <div id="loading" class="loading">
+      <div class="loading__spinner"></div>
+      <p class="loading__text">Loading Apple Park&hellip;</p>
+      <p class="loading__sub">Add your Google Maps API key to <code>.env</code> to see photorealistic tiles</p>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

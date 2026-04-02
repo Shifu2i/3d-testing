@@ -1,0 +1,23 @@
+{
+  "name": "3d-testing",
+  "version": "1.0.0",
+  "description": "Apple Park 3D Viewer with interactive blog post overlay",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://local_proxy@127.0.0.1:35181/git/Shifu2i/3d-testing"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "3d-tiles-renderer": "^0.4.23",
+    "three": "^0.183.2",
+    "vite": "^8.0.3"
+  }
+}
